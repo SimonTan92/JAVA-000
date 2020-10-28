@@ -1,0 +1,45 @@
+JAVA 8 默认使用并行GC，默认配置的堆内存是物理内存的四分之一。
+
+查看当前Java进程所使用的GC种类：
+1、先使用jps -lvm查看Java的进程号
+2、通过jmap -heap 进程号 即可查看当前GC种类。
+（也可以通过打印GC日志，在日志中查看GC种类）
+
+1、串行GC：
+java -XX:+UseSerialGC -Xms512m -Xmx512m -XX:+PrintGCDetails -XX:+PrintGCDateStamps GCLogAnalysis
+使用单线程GC，整体占用的时间比较长，能不使用就不使用。
+Minor GC时，是将Eden区与S0区复制到S1区中，并把部分对象晋升到老年代。
+Full GC时，将老年代不活跃的对象清楚掉。
+
+2、并行GC：（默认的GC）
+java -XX:+UseParallelGC -Xms512m -Xmx512m -XX:+PrintGCDetails -XX:+PrintGCDateStamps GCLogAnalysis
+Young GC时，只清理Young区，Old区不清理。会将Eden区和S0区中存活的对象复制到S1区中，并清空掉。把部分对象晋升到老年代，所以老年代会增加数据量。
+Full GC时（即老年代数据量很大的时候），会清除Young区（Eden区与S0、S1区），并把老年代不活跃的数据清除掉。
+
+3、CMS GC：
+java -XX:+UseConcMarkSweepGC -Xms512m -Xmx512m -XX:+PrintGCDetails -XX:+PrintGCDateStamps GCLogAnalysis
+CMS存在六个阶段：
+阶段1: Initial Mark（初试标记）
+阶段2: Concurrent Mark（并发标记，不暂停JVM，即不会影响业务处理）
+阶段3: Concurrent Preclean（并发预清理，不暂停JVM，即不会影响业务处理）
+阶段4: Final Remark（最终标记）
+阶段5: Concurrent Sweep（并发清除，不暂停JVM，即不会影响业务处理）
+阶段6: Concurrent Reset（并发重置，不暂停JVM，即不会影响业务处理）
+默认情况下，GC并发的线程占CPU核心数的四分之一。
+默认情况下，CMS最后不进行内存的整理（可以靠JVM参数调）。
+
+4、G1 GC：
+与之前的GC不一样，是不分代的。
+java -XX:+UseG1GC -Xms512m -Xmx512m -XX:+PrintGC -XX:+PrintGCDateStamps GCLogAnalysis
+G1会经历如下阶段：
+Evacuation Pause：young（纯年轻代模式转移暂停）
+Concurrent Marking（并发标记，不暂停JVM，即不会影响业务处理）
+阶段1: Initial Mark（初始标记）
+阶段2: Root Region Scan（Root区扫描）
+阶段3: Concurrent Mark（并发标记，不暂停JVM，即不会影响业务处理）
+阶段4: Remark（再次标记）
+阶段5: Cleanup（清理）
+Evacuation Pause（mixed）（转移暂停：混合模式）
+Full GC（Allocation Failure）
+
+当内存较大时，G1 GC的优势是比较大的，可能只存在young gc。
